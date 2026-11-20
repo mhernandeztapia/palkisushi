@@ -1,0 +1,138 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  icon        String?
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String?
+  description String
+  price       Int         // In Chilean Pesos (CLP)
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  image       String?
+  badge       String?     // e.g. "Popular", "Recomendado", "Chef Especial"
+  pieces      Int?        // e.g. 40
+  isAvailable Boolean     @default(true)
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
+}
+
+// For the "Arma tu Roll" interactive builder
+model RollOption {
+  id              String   @id @default(cuid())
+  type            String   // "BASE_PIECES", "PROTEIN", "VEGETABLE", "WRAP", "EXTRA"
+  name            String
+  pieces          Int?     // For BASE_PIECES: 10, 20, 30, 40, etc.
+  price           Int      @default(0) // Additional price in CLP
+  description     String?
+  isAvailable     Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Promotion {
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  badge        String?
+  scheduleType String   @default("DAY_OF_WEEK") // "ALWAYS", "DAY_OF_WEEK", "WEEK", "MONTH"
+  dayOfWeek    Int?     // 0=Domingo, 1=Lunes, ..., 4=Jueves
+  weekOfMonth  Int?     // 1, 2, 3, 4
+  monthOfYear  Int?     // 1 to 12
+  isActive     Boolean  @default(true)
+  bannerText   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model DeliveryZone {
+  id               String   @id @default(cuid())
+  name             String
+  price            Int      // In CLP
+  estimatedMinutes String?
+  isActive         Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model RestaurantTable {
+  id            String   @id @default(cuid())
+  number        String   @unique // e.g. "Mesa 1", "Barra 1"
+  type          String   @default("TABLE") // "TABLE" or "BAR"
+  status        String   @default("FREE") // "FREE", "OCCUPIED", "BILL_REQUESTED"
+  capacity      Int      @default(4)
+  activeOrderId String?
+  isAvailable   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Order {
+  id                     String      @id @default(cuid())
+  orderNumber            String      @unique // e.g. "PK-20261119-001"
+  orderType              String      // "DELIVERY", "PICKUP", "DINE_IN"
+  status                 String      @default("PENDING") // "PENDING", "PREPARING", "READY", "ON_THE_WAY", "DELIVERED", "CANCELLED"
+  customerName           String
+  customerPhone          String
+  customerAddress        String?
+  deliveryZoneId         String?
+  deliveryZoneName       String?
+  deliveryFee            Int         @default(0)
+  paymentMethod          String      // "CASH", "TRANSFER", "POS"
+  paymentStatus          String      @default("PENDING_PAYMENT") // "PENDING_PAYMENT", "PAID"
+  subtotal               Int
+  tip                    Int         @default(0)
+  total                  Int
+  notes                  String?
+  tableNumber            String?
+  deliveryNoticeAccepted Boolean     @default(false)
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+  items                  OrderItem[]
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName String
+  unitPrice   Int
+  quantity    Int      @default(1)
+  subtotal    Int
+  rollConfig  String?  // JSON string storing custom roll configuration
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique // e.g. "admin_pin", "delivery_base_km_fee", "delivery_per_km_fee"
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
